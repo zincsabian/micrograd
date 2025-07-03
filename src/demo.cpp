@@ -15,6 +15,8 @@ int main() {
     auto f = e.pow(2);
     auto g = f / 2.0;
     g += 10.0 / f;
-
-    printf("%.4f\n", g.data());
+    printf("g.data: %.4f\n", g.data());  // prints 24.7041, the outcome of this forward pass
+    g.backward();
+    printf("a.grad: %.4f\n", a.grad());  // prints 138.8338, i.e. the numerical value of dg/da
+    printf("b.grad: %.4f\n", b.grad());  // prints 645.5773, i.e. the numerical value of dg/db
 }
