@@ -1,3 +1,6 @@
+#ifndef VALUE_H
+#define VALUE_H
+
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -8,23 +11,39 @@
 
 class Value {
 private:
+    inline static int cnt = 0;
+    static constexpr double lr = 1e-3;
+
     struct Node : public std::enable_shared_from_this<Node> {
         double data_;
         double grad_;
+        std::string label_;
+        std::string op_;
         std::vector<std::shared_ptr<Node>> prev_;
         std::function<void()> backward_;
 
-        Node(double x) : data_(x), grad_(0) {}
+        Node(double x, std::string label = "")
+            : data_(x), grad_(0), op_(""), label_(label + "_" + std::to_string(cnt)) {}
     };
 
     std::shared_ptr<Node> node_;
 
 public:
-    Value(double x) : node_(std::make_shared<Node>(x)) {}
+    Value(double x = 0) : node_(std::make_shared<Node>(x)) {}
 
     double data() const { return node_->data_; }
 
     double grad() const { return node_->grad_; }
+
+    void zero_grad() { node_->grad_ = 0; }
+
+    void step() { node_->data_ += -lr * grad(); }
+
+    std::string label() const { return node_->label_; }
+
+    std::string name() const {
+        return label() + "_data=" + std::to_string(data()) + "_grad=" + std::to_string(grad());
+    }
 
     Value operator+(const Value& other) const {
         auto result = Value(node_->data_ + other.node_->data_);
@@ -122,13 +141,13 @@ public:
     }
 
     void backward() {
-        // 拓扑排序
         std::unordered_set<std::shared_ptr<Node>> visited;
         std::stack<std::shared_ptr<Node>> stack;
 
         std::function<void(std::shared_ptr<Node>)> dfs = [&](std::shared_ptr<Node> node) {
-            if (visited.count(node))
+            if (visited.count(node)) {
                 return;
+            }
             visited.insert(node);
             for (auto& prev : node->prev_) {
                 dfs(prev);
@@ -137,11 +156,8 @@ public:
         };
 
         dfs(node_);
-
-        // 设置根节点梯度为1
         node_->grad_ = 1.0;
 
-        // 反向传播
         while (!stack.empty()) {
             auto node = stack.top();
             stack.pop();
@@ -167,3 +183,5 @@ Value operator*(double a, const Value& b) {
 Value operator/(double a, const Value& b) {
     return Value(a) / b;
 }
+
+#endif
